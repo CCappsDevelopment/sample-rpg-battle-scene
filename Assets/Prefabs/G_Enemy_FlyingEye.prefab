@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 852462981999186095}
   - component: {fileID: 852462981999186094}
   - component: {fileID: 852462981999186093}
+  - component: {fileID: 7945136143439210698}
   m_Layer: 0
   m_Name: G_Enemy_FlyingEye
   m_TagString: Untagged
@@ -152,3 +153,17 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 0.1613833, y: 0.17914629}
   m_EdgeRadius: 0
+--- !u!114 &7945136143439210698
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 852462981999186089}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de981645cdf5755459ce1def02e570ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  defaultMaterial: {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  spriteOutlineMaterial: {fileID: 2100000, guid: c806637a0eb5e48488db536951d51bf5, type: 2}

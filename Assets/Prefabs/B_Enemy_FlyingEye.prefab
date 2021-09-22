@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 284642153506244227}
   - component: {fileID: 284642153506244226}
   - component: {fileID: 284642153506244225}
+  - component: {fileID: 5218820148067272942}
   m_Layer: 0
   m_Name: B_Enemy_FlyingEye
   m_TagString: Untagged
@@ -97,7 +98,7 @@ SpriteRenderer:
   m_SortingLayer: 1
   m_SortingOrder: 0
   m_Sprite: {fileID: -4795363162621231457, guid: 6d7cd4f7505dc674c891ca8946cfd98b, type: 3}
-  m_Color: {r: 0, g: 0, b: 1, a: 1}
+  m_Color: {r: 0, g: 1, b: 1, a: 1}
   m_FlipX: 1
   m_FlipY: 0
   m_DrawMode: 0
@@ -152,3 +153,17 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 0.1613833, y: 0.17914629}
   m_EdgeRadius: 0
+--- !u!114 &5218820148067272942
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 284642153506244229}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de981645cdf5755459ce1def02e570ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  defaultMaterial: {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  spriteOutlineMaterial: {fileID: 2100000, guid: c806637a0eb5e48488db536951d51bf5, type: 2}

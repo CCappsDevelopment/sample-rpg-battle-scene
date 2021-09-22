@@ -22,21 +22,22 @@ public class Enemy_FlyingEye : Unit
         _ground = GameObject.Find("Ground");
         _groundTransform = _ground.GetComponent<Transform>();
         _currentPosition = new Vector3(
-            transform.position.x, 
-            transform.position.y, 
-            transform.position.z
+            transform.parent.position.x, 
+            transform.parent.position.y, 
+            transform.parent.position.z
         );
         _originalPosition = _currentPosition;
     }
 
     public override void Die()
     {
+        // Trigger Enemy's Death Animation
         _animator.SetTrigger("Death");
 
         // Move down to touch ground
-        this.transform.position = Vector3.Lerp(
+        transform.parent.position = Vector3.Lerp(
             _currentPosition,
-            new Vector3(_currentPosition.x, _groundTransform.position.y, 0),
+            new Vector3(_currentPosition.x, _groundTransform.position.y + 1.56f, 0),
             1f);
 
         isDead = true;
@@ -50,7 +51,7 @@ public class Enemy_FlyingEye : Unit
         {
             _animator.SetTrigger("Recover");
             // Move up to original position
-            this.transform.position = Vector3.Lerp(
+            transform.parent.position = Vector3.Lerp(
                 _currentPosition,
                 _originalPosition,
                 1f);

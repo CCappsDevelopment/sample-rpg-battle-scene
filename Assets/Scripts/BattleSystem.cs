@@ -100,7 +100,7 @@ public class BattleSystem : MonoBehaviour
     private readonly WaitForSeconds _animationDelay = new WaitForSeconds(0.5f);
 
     /// <summary>
-    /// UNITY: Start is called before the first frame update.
+    /// UNITY - Start(): Called before the first frame update.
     /// Instantiates and Initialized member variables,
     /// then starts the battle sequence.
     /// </summary>
@@ -136,15 +136,17 @@ public class BattleSystem : MonoBehaviour
 
         yield return _battleDelay;
 
-        // Set Units to their Idle Animations
-        foreach (Unit unit in _unitList)
-            unit.SetIdle();
+        // Set Player to their Idle Animations
+        foreach (Player player in _playerList)
+            player.SetIdle();
+        foreach (Enemy_FlyingEye enemy in _enemyList)
+            enemy.SetBattleStance();
 
         // Set Unit Turn Order by Speed
         SetTurnOrder();
 
         // Get Next Unit turn
-        NextTurn();
+        GetNextTurn();
     }
 
     /// <summary>
@@ -209,7 +211,7 @@ public class BattleSystem : MonoBehaviour
         // otherwise, take next Turn.
         _aliveEnemies = _enemyList.FindAll(x => x.isDead == false);
         if (_aliveEnemies.Count != 0)
-            NextTurn();
+            GetNextTurn();
         else
         {
             SetBattlePhaseDisplayText("WON");
@@ -242,13 +244,13 @@ public class BattleSystem : MonoBehaviour
         yield return _animationDelay;
 
         // Set Enemy's Animation to Idle.
-        _currEnemy.SetIdle();
+        _currEnemy.SetBattleStance();
 
         // If all Players are dead Enemy team wins (Player loss),
         // otherwise, take next Turn.
         _alivePlayers = _playerList.FindAll(x => x.isDead == false);
         if (_alivePlayers.Count != 0)
-            NextTurn();
+            GetNextTurn();
         else
         {
             SetBattlePhaseDisplayText("LOST");
@@ -324,7 +326,7 @@ public class BattleSystem : MonoBehaviour
         _rEnemyHealthBarGO = GameObject.Find("R_EnemyHealthBar");
         _gEnemyHealthBarGO = GameObject.Find("G_EnemyHealthBar");
         _bEnemyHealthBarGO = GameObject.Find("B_EnemyHealthBar");
-        _unitGOList = new List<GameObject>
+        _healthBarGOList = new List<GameObject>
         {
             _playerHealthBarGO,
             _rPlayerHealthBarGO,
@@ -376,7 +378,7 @@ public class BattleSystem : MonoBehaviour
         _unitList.AddRange(_enemyList);
 
         // Assign Unit Health Bars
-        foreach (var unit in _unitList.Zip(_unitGOList, Tuple.Create))
+        foreach (var unit in _unitList.Zip(_healthBarGOList, Tuple.Create))
             unit.Item1.healthBar = unit.Item2.GetComponent<HealthBar>();
     }
 
@@ -387,33 +389,43 @@ public class BattleSystem : MonoBehaviour
     /// matching turn, and updates the Battle State.
     /// If the Turn stack is empty, refill and continue.
     /// </summary>
-    private void NextTurn()
+    private void GetNextTurn()
     {
         // If the Turn stack is not empty, take next Turn.
         if (_nextTurn.Count > 0)
-        {
-            // If next Unit is a Player, take Player Turn.
-            if (_nextTurn.Peek().unitType.ToUpper() == "PLAYER")
-            {
-                _battleState = BattleState.PLAYER;
-                ToggleButtons(true);
-                PlayerTurn();
-            }
-            // If next Unit is a Enemy, take Enemy Turn.
-            else
-            {
-                _battleState = BattleState.ENEMY;
-                ToggleButtons(false);
-                EnemyTurn();
-            }
-        }
+            TakeUnitTurn();
         // Stack is empty, refill it then take next Turn.
         else
         {
             SetTurnOrder();
-            NextTurn();
+            GetNextTurn();
         }
         
+    }
+
+    /// <summary>
+    /// TakeTurn(): Pop next Player Unit off the
+    /// Turn stack, and start Player's SelectAction coroutine.
+    /// If next Unit is dead, skip to next Unit in stack.
+    /// </summary>
+    private void TakeUnitTurn()
+    {
+        // Pop next Player off of the Turn stack
+        Unit _currUnit = _nextTurn.Pop();
+
+        // If the Player isn't dead, wait for user to 
+        // select Action, otherwise skip to next Unit's Turn.
+        if (!_currUnit.isDead)
+        {
+            SetBattlePhaseDisplayText(_currUnit.unitName);
+            if (_currUnit.unitType == "PLAYER")
+                PlayerTurn(_currUnit);
+            else if (_currUnit.unitType == "ENEMY")
+                EnemyTurn(_currUnit);
+            else
+                GetNextTurn();
+        }
+        else GetNextTurn();
     }
 
     /// <summary>
@@ -421,20 +433,13 @@ public class BattleSystem : MonoBehaviour
     /// Turn stack, and start Player's SelectAction coroutine.
     /// If next Unit is dead, skip to next Unit in stack.
     /// </summary>
-    private void PlayerTurn()
+    private void PlayerTurn(Unit _currPlayer)
     {
-        // Pop next Player off of the Turn stack
-        Unit _currPlayer = _nextTurn.Pop();
+        _battleState = BattleState.PLAYER;
+        _currPlayer.SetBattleStance();
 
-        // If the Player isn't dead, wait for user to 
-        // select Action, otherwise skip to next Unit's Turn.
-        if (!_currPlayer.isDead)
-        {
-            SetBattlePhaseDisplayText(_currPlayer.unitName);
-            _currPlayer.SetBattleStance();
-            StartCoroutine(SelectAction(_currPlayer));
-        }
-        else NextTurn();
+        ToggleButtons(true);
+        StartCoroutine(SelectAction(_currPlayer));
     }
 
     /// <summary>
@@ -442,20 +447,12 @@ public class BattleSystem : MonoBehaviour
     /// Turn stack, and start Enemy's Attack coroutine.
     /// If next Unit is dead, skip to next Unit in stack.
     /// </summary>
-    private void EnemyTurn()
+    private void EnemyTurn(Unit _currEnemy)
     {
-        // Pop next Enemy off of the Turn stack
-        Unit _currEnemy = _nextTurn.Pop();
+        _battleState = BattleState.ENEMY;
 
-        // If the Enemy isn't dead, take Enemy's Attack,
-        // otherwise skip to next Unit's Turn.
-        if (!_currEnemy.isDead)
-        {
-            _currEnemy.SetBattleStance();
-            SetBattlePhaseDisplayText(_currEnemy.unitName);
-            StartCoroutine(EnemyAttack(_currEnemy));
-        }
-        else NextTurn();
+        ToggleButtons(false);
+        StartCoroutine(EnemyAttack(_currEnemy));
     }
 
     /// <summary>
