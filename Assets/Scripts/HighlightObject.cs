@@ -8,11 +8,16 @@ public class HighlightObject : MonoBehaviour
     public Material defaultMaterial;
     public Material spriteOutlineMaterial;
 
-    void OnMouseEnter()
+    public void OnMouseEnter()
     {
         GetComponent<Renderer>().material = spriteOutlineMaterial;
     }
-    void OnMouseExit()
+    public void OnMouseExit()
+    {
+        GetComponent<Renderer>().material = defaultMaterial;
+    }
+
+    void OnDestroy()
     {
         GetComponent<Renderer>().material = defaultMaterial;
     }

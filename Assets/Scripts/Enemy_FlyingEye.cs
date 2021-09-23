@@ -5,6 +5,8 @@ using UnityEngine;
 
 public class Enemy_FlyingEye : Unit
 {
+    public bool isSelected;
+
     // Position Vectors
     private Vector3 _originalPosition;
     private Vector3 _currentPosition;
@@ -15,6 +17,8 @@ public class Enemy_FlyingEye : Unit
 
     public void Start()
     {
+        isSelected = false;
+
         ResetHealth();
 
         _animator = GetComponent<Animator>();

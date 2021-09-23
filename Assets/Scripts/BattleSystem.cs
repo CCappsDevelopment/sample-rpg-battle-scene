@@ -95,6 +95,11 @@ public class BattleSystem : MonoBehaviour
     private List<Unit> _unitList;
     private Stack<Unit> _nextTurn;
 
+    // UI
+    private UI _UI = new UI();
+    // Utilites
+    private Utils _utils = new Utils();
+
     // Custom delays for Coroutines 
     private readonly WaitForSeconds _battleDelay = new WaitForSeconds(2.0f);
     private readonly WaitForSeconds _animationDelay = new WaitForSeconds(0.5f);
@@ -108,9 +113,6 @@ public class BattleSystem : MonoBehaviour
     {
         //Initialize GameObjects
         InitGameObjects();
-
-        // Set Battle Phase Textbox to START
-        SetBattlePhaseDisplayText("START");
 
         // Setup Battle
         StartCoroutine(SetupBattle());
@@ -126,14 +128,20 @@ public class BattleSystem : MonoBehaviour
     {
         // Start Battle Sequence
         _battleState = BattleState.START;
-        SetBattlePhaseDisplayText("START");
-
-        // Disable Buttons
-        ToggleButtons(false);
+        _UI.SetBattlePhaseDisplayText("START");
 
         // Initialize Units
         InitUnits();
 
+        // Set starting Combat Text.
+        string _enemyCount = _utils.CapitalizeFirst(_utils.NumberToWords(_enemyList.Count));
+        string _enemyType = _enemyList.First().unitName;
+        _UI.SetCombatText($"{_enemyCount} {_enemyType}{(_enemyList.Count != 1 ? "s" : "")} Appeared!");
+
+        // Disable Buttons
+        ToggleButtons(false);
+
+        // Delay between battle phases
         yield return _battleDelay;
 
         // Set Player to their Idle Animations
@@ -181,7 +189,7 @@ public class BattleSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// PlayerAttck(Unit): Performs current Player's Attack.
+    /// PlayerAttack(Unit): Performs current Player's Attack.
     /// Waits for user to select Enemy to Attack.
     /// Then performs the Player's Attack animation, damages
     /// the enemy, then checks to see if the battle is won,
@@ -190,17 +198,46 @@ public class BattleSystem : MonoBehaviour
     /// /// <param name="_currPlayer">The current Player taking its Turn</param>
     IEnumerator PlayerAttack(Unit _currPlayer)
     {
+        // Make Enemies Clickable
+        Camera.main.gameObject.AddComponent<ClickObject>();
+
+        // Highlight Enemies on mouseover.
+        _UI.HighlightOnMouseover(_enemyList, defaultMaterial, spriteOutlineMaterial);
+
+        // Deselect all Enemies
+        foreach (Enemy_FlyingEye enemy in _enemyList)
+            enemy.isSelected = false;
+
+        _UI.SetBattlePhaseDisplayText("SELECT ENEMY");
+        _UI.SetCombatText($"{_currPlayer.unitName.ToUpper()}: ENEMY SELECT!");
+
+        // Wait for user to select an Enemy by clicking on it.
+        yield return new WaitUntil(SelectEnemy);
+
+        _UI.SetBattlePhaseDisplayText(_currPlayer.unitName);
+
+        // Get Enemy that was selected
+        Enemy_FlyingEye _chosenEnemy = new Enemy_FlyingEye();
+        _chosenEnemy = _enemyList.Find(x => x.isSelected == true);
+        _UI.SetCombatText($"{_chosenEnemy.unitName.ToUpper()}: SELECT, prepare thyself.");
+
+        yield return new WaitForSeconds(1.0f);
+
         // Perform Player's Attack Animation
         _currPlayer.Attack();
 
         yield return _animationDelay;
 
-        // TODO: Choose Enemy by mouseover rather than random selection.
-        List<Enemy_FlyingEye> _aliveEnemies = new List<Enemy_FlyingEye>();
-        _aliveEnemies = _enemyList.FindAll(x => x.isDead == false);
-        var random = new System.Random();
-        Enemy_FlyingEye _chosenEnemy = _aliveEnemies[random.Next(_aliveEnemies.Count)];
-        bool playerIsDead = _chosenEnemy.TakeDamage(Math.Abs(_currPlayer.attack - _chosenEnemy.defense));
+        // Deal Damage to the chosen Enemy.
+        float _damageTaken = Math.Abs(_currPlayer.attack - _chosenEnemy.defense);
+        bool enemyIsDead = _chosenEnemy.TakeDamage(_damageTaken);
+        _UI.SetCombatText($"{_chosenEnemy.unitName.ToUpper()} " +
+            $"{(enemyIsDead ? "EDURED" : "DIED taking")} " +
+            $"{_utils.CapitalizeFirst(_utils.NumberToWords((int)_damageTaken))} " +
+            $"damage!");
+
+        // Place Enemy Sprite in BG if dead.
+        _UI.SetEnemySortingLayers(_enemyList);
 
         yield return new WaitForSeconds(1.0f);
 
@@ -209,12 +246,15 @@ public class BattleSystem : MonoBehaviour
 
         // If all Enemies are dead Player team wins,
         // otherwise, take next Turn.
-        _aliveEnemies = _enemyList.FindAll(x => x.isDead == false);
+        List<Enemy_FlyingEye> _aliveEnemies = _enemyList.FindAll(x => x.isDead == false);
         if (_aliveEnemies.Count != 0)
             GetNextTurn();
         else
         {
-            SetBattlePhaseDisplayText("WON");
+            _UI.SetBattlePhaseDisplayText("WON");
+            _UI.SetCombatText($"The BATTLE is WON: {_currPlayer.unitName.ToUpper()} LAUDED!");
+            yield return new WaitForSeconds(1.0f);
+
             StartCoroutine(BattleEnd("PLAYER"));
         }
     }
@@ -239,9 +279,17 @@ public class BattleSystem : MonoBehaviour
         _alivePlayers = _playerList.FindAll(x => x.isDead == false);
         var random = new System.Random();
         Player _chosenPlayer = _alivePlayers[random.Next(_alivePlayers.Count)];
-        bool playerIsDead = _chosenPlayer.TakeDamage(Math.Abs(_currEnemy.attack - _chosenPlayer.defense));
 
-        yield return _animationDelay;
+        float _damageTaken = Math.Abs(_currEnemy.attack - _chosenPlayer.defense);
+        bool playerIsDead = _chosenPlayer.TakeDamage(_damageTaken);
+        _UI.SetCombatText($"{_currEnemy.unitName.ToUpper()} " +
+            $"ATTACKS: " +
+            $"{_chosenPlayer.unitName.ToUpper()} " +
+            $"{(playerIsDead ? "KILLED by" : "takes")} " +
+            $"{_utils.CapitalizeFirst(_utils.NumberToWords((int)_damageTaken))} " +
+            $"DAMAGE!");
+
+        yield return new WaitForSeconds(1.0f);
 
         // Set Enemy's Animation to Idle.
         _currEnemy.SetBattleStance();
@@ -253,7 +301,8 @@ public class BattleSystem : MonoBehaviour
             GetNextTurn();
         else
         {
-            SetBattlePhaseDisplayText("LOST");
+            _UI.SetBattlePhaseDisplayText("LOST");
+            _UI.SetCombatText($"The BATTLE is LOST: {_chosenPlayer.unitName.ToUpper()} The LAST to fall...");
             StartCoroutine(BattleEnd("ENEMY"));
         }
     }
@@ -380,6 +429,9 @@ public class BattleSystem : MonoBehaviour
         // Assign Unit Health Bars
         foreach (var unit in _unitList.Zip(_healthBarGOList, Tuple.Create))
             unit.Item1.healthBar = unit.Item2.GetComponent<HealthBar>();
+
+        // Set all enemies to Entities sorting layer.
+        _UI.SetEnemySortingLayers(_enemyList);
     }
 
     /// <summary>
@@ -417,7 +469,7 @@ public class BattleSystem : MonoBehaviour
         // select Action, otherwise skip to next Unit's Turn.
         if (!_currUnit.isDead)
         {
-            SetBattlePhaseDisplayText(_currUnit.unitName);
+            _UI.SetBattlePhaseDisplayText(_currUnit.unitName);
             if (_currUnit.unitType == "PLAYER")
                 PlayerTurn(_currUnit);
             else if (_currUnit.unitType == "ENEMY")
@@ -437,6 +489,7 @@ public class BattleSystem : MonoBehaviour
     {
         _battleState = BattleState.PLAYER;
         _currPlayer.SetBattleStance();
+        _UI.SetCombatText($"{_currPlayer.unitName}'s Turn, ACTION SELECT!");
 
         ToggleButtons(true);
         StartCoroutine(SelectAction(_currPlayer));
@@ -450,6 +503,7 @@ public class BattleSystem : MonoBehaviour
     private void EnemyTurn(Unit _currEnemy)
     {
         _battleState = BattleState.ENEMY;
+        _UI.SetCombatText($"{_currEnemy.unitName}'s Turn, INCOMING ATTACK!");
 
         ToggleButtons(false);
         StartCoroutine(EnemyAttack(_currEnemy));
@@ -471,6 +525,26 @@ public class BattleSystem : MonoBehaviour
         List<Unit> _turnOrder = _unitList.OrderBy(x => x.speed).ToList();
         foreach (Unit unit in _turnOrder)
             _nextTurn.Push(unit);
+    }
+
+    private bool SelectEnemy()
+    {
+        // Check if any Enemies have been selected.
+        List<Enemy_FlyingEye> _selectedEnemies = new List<Enemy_FlyingEye>();
+        _selectedEnemies = _enemyList.FindAll(x => x.isSelected && !x.isDead);
+
+        // If an Enemy has been selected, trutn true, otherwise false.
+        if (_selectedEnemies.Count > 0)
+        {
+            // Destroy Components that make Enemies Clickable,
+            // as well as, makes them highlight on mouseover.
+            Destroy(Camera.main.gameObject.GetComponent<ClickObject>());
+            foreach (Enemy_FlyingEye enemy in _enemyList)
+                Destroy(enemy.GetComponentInParent<HighlightObject>());
+
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -507,6 +581,7 @@ public class BattleSystem : MonoBehaviour
         // If not a Player's turn, do nothing.
         if (_battleState != BattleState.PLAYER)
             return;
+
 
         // Start Player's Attack.
         StartCoroutine(PlayerAttack(_currPlayer));
@@ -564,36 +639,5 @@ public class BattleSystem : MonoBehaviour
         Debug.Log("ITEM BUTTON PRESSED");
         StartCoroutine(SelectAction(_currPlayer));
         //StartCoroutine(OpenInventory());
-    }
-
-    /// <summary>
-    /// SetBattlePhaseDisplayText(string): Sets the text
-    /// for the Battle Phase display on the UI.
-    /// </summary>
-    /// <param name="_battleText">String representing the current Battle State.</param>
-    private void SetBattlePhaseDisplayText(string _battleText)
-    {
-        // Set UI Battle Phase Display Text.
-        GameObject _battlePhaseDisplayGO = GameObject.Find("BattlePhaseDisplay");
-        Text _battlePhaseText = _battlePhaseDisplayGO.GetComponentInChildren<Text>();
-        _battlePhaseText.text = _battleText;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="a"></param>
-    private void RestoreDefaultMaterial(GameObject _unit)
-    {
-        _unit.GetComponent<SpriteRenderer>().material = defaultMaterial;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="a"></param>
-    private void SetTurnIndicationOutline(GameObject _unit)
-    {
-        _unit.GetComponent<SpriteRenderer>().material = spriteOutlineMaterial;
     }
 }
