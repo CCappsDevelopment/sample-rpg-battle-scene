@@ -61,6 +61,11 @@ public class Utils : MonoBehaviour
         return words;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public string CapitalizeFirst(string text)
     {
         return char.ToUpper(text[0]) +

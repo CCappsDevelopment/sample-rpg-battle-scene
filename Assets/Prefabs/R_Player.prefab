@@ -54,7 +54,9 @@ MonoBehaviour:
   hpMax: 10
   hpCurr: 10
   attack: 8
+  magicAttack: 12
   defense: 2
+  magicDefense: 10
   speed: 9
   isDead: 0
   healthBar: {fileID: 0}

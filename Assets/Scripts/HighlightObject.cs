@@ -8,17 +8,27 @@ public class HighlightObject : MonoBehaviour
     public Material defaultMaterial;
     public Material spriteOutlineMaterial;
 
+    // Highlight sprite with outline on mouseover
     public void OnMouseEnter()
     {
-        GetComponent<Renderer>().material = spriteOutlineMaterial;
-    }
-    public void OnMouseExit()
-    {
-        GetComponent<Renderer>().material = defaultMaterial;
+        SetMaterial(spriteOutlineMaterial);
     }
 
-    void OnDestroy()
+    // Remove highlighed outline when mouseover ends
+    public void OnMouseExit()
     {
-        GetComponent<Renderer>().material = defaultMaterial;
+        SetMaterial(defaultMaterial);
+    }
+
+    // Reset object's material when this script is removed
+    public void OnDestroy()
+    {
+        SetMaterial(defaultMaterial);
+    }
+
+    // Set Material on the Renderer Component on attached object.
+    private void SetMaterial(Material _material)
+    {
+        GetComponent<Renderer>().material = _material;
     }
 }

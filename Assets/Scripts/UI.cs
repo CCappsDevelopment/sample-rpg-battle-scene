@@ -30,6 +30,12 @@ public class UI : MonoBehaviour
         _combatTextbox.text = _combatText;
     }
 
+    /// <summary>
+    /// HighlightOnMouseover(List<Enemy>, Material, Material):
+    /// </summary>
+    /// <param name="_enemyList"></param>
+    /// <param name="defaultMaterial"></param>
+    /// <param name="spriteOutlineMaterial"></param>
     public void HighlightOnMouseover(
         List<Enemy_FlyingEye> _enemyList,
         Material defaultMaterial,
@@ -47,6 +53,10 @@ public class UI : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// SetEnemySortingLayers(List<Enemy>):
+    /// </summary>
+    /// <param name="_enemyList"></param>
     public void SetEnemySortingLayers(List<Enemy_FlyingEye> _enemyList)
     {
         foreach (Enemy_FlyingEye enemy in _enemyList)
@@ -59,18 +69,20 @@ public class UI : MonoBehaviour
     }
 
     /// <summary>
-    /// 
+    /// RestoreDefaultMaterial(GameObject, Material):
     /// </summary>
-    /// <param name="a"></param>
+    /// <param name="_unit"></param>
+    /// <param name="defaultMaterial"></param>
     private void RestoreDefaultMaterial(GameObject _unit, Material defaultMaterial)
     {
         _unit.GetComponent<SpriteRenderer>().material = defaultMaterial;
     }
 
     /// <summary>
-    /// 
+    /// SetTurnIndicationOutline(GameObject, Material):
     /// </summary>
-    /// <param name="a"></param>
+    /// <param name="_unit"></param>
+    /// <param name="spriteOutlineMaterial"></param>
     private void SetTurnIndicationOutline(GameObject _unit, Material spriteOutlineMaterial)
     {
         _unit.GetComponent<SpriteRenderer>().material = spriteOutlineMaterial;

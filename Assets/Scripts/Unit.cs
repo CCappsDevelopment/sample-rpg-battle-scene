@@ -5,14 +5,17 @@ using UnityEngine;
 public class Unit : MonoBehaviour
 {
     // Player stats
-    public string unitName = "";
-    public string unitType = "";
-    public float level = 1.0f;
-    public float hpMax = 10.0f;
-    public float hpCurr = 10.0f;
-    public float attack = 5.0f;
-    public float defense = 3.0f;
-    public float speed = 10.0f;
+    public string unitName;
+    public string unitType;
+    public float level;
+    public float hpMax;
+    public float hpCurr;
+    public float attack;
+    public float magicAttack;
+    public float defense;
+    public float magicDefense;
+    public float speed;
+    public bool isDefending;
     public bool isDead = false;
     public HealthBar healthBar;
 
@@ -57,6 +60,11 @@ public class Unit : MonoBehaviour
     public void Attack()
     {
         _animator.SetTrigger("Attack");
+    }
+
+    public void Magic()
+    {
+        _animator.SetTrigger("Magic");
     }
 
     public void SetBattleStance()

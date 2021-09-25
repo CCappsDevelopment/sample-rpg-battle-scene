@@ -88,7 +88,6 @@ public class BattleSystem : MonoBehaviour
     private Enemy_FlyingEye _bEnemy;
 
     // Unit Lists
-    private List<GameObject> _unitGOList;
     private List<GameObject> _healthBarGOList;
     private List<Player> _playerList;
     private List<Enemy_FlyingEye> _enemyList;
@@ -99,6 +98,9 @@ public class BattleSystem : MonoBehaviour
     private UI _UI = new UI();
     // Utilites
     private Utils _utils = new Utils();
+
+    // Show/Hide Inventory 
+    private bool _inventoryOpen = false;
 
     // Custom delays for Coroutines 
     private readonly WaitForSeconds _battleDelay = new WaitForSeconds(2.0f);
@@ -196,7 +198,7 @@ public class BattleSystem : MonoBehaviour
     /// if not it proceeds to the next Turn.
     /// </summary>
     /// /// <param name="_currPlayer">The current Player taking its Turn</param>
-    IEnumerator PlayerAttack(Unit _currPlayer)
+    IEnumerator PlayerAttack(Unit _currPlayer, string _attackType = "")
     {
         // Make Enemies Clickable
         Camera.main.gameObject.AddComponent<ClickObject>();
@@ -208,29 +210,39 @@ public class BattleSystem : MonoBehaviour
         foreach (Enemy_FlyingEye enemy in _enemyList)
             enemy.isSelected = false;
 
+        // Update UI text
         _UI.SetBattlePhaseDisplayText("SELECT ENEMY");
-        _UI.SetCombatText($"{_currPlayer.unitName.ToUpper()}: ENEMY SELECT!");
+        _UI.SetCombatText($"{_currPlayer.unitName.ToUpper()}: " +
+            $"{(_attackType == "MAGIC" ? "MAGICAL" : "")} " +
+            $"ATTACK - Enemy SELECT!");
 
         // Wait for user to select an Enemy by clicking on it.
         yield return new WaitUntil(SelectEnemy);
 
-        _UI.SetBattlePhaseDisplayText(_currPlayer.unitName);
-
         // Get Enemy that was selected
-        Enemy_FlyingEye _chosenEnemy = new Enemy_FlyingEye();
-        _chosenEnemy = _enemyList.Find(x => x.isSelected == true);
-        _UI.SetCombatText($"{_chosenEnemy.unitName.ToUpper()}: SELECT, prepare thyself.");
-
-        yield return new WaitForSeconds(1.0f);
+        Enemy_FlyingEye _chosenEnemy = _enemyList.Find(x => x.isSelected && !x.isDead);
 
         // Perform Player's Attack Animation
-        _currPlayer.Attack();
+        if (_attackType == "MAGIC")
+        {
+            _UI.SetBattlePhaseDisplayText("MAGIC");
+            _currPlayer.Magic();
+        }
+        else
+        {
+            _UI.SetBattlePhaseDisplayText("ATTACK");
+            _currPlayer.Attack();
+        }
 
         yield return _animationDelay;
 
         // Deal Damage to the chosen Enemy.
-        float _damageTaken = Math.Abs(_currPlayer.attack - _chosenEnemy.defense);
+        float _damageTaken = (_attackType == "MAGIC")
+            ? Math.Abs(_currPlayer.magicAttack - _chosenEnemy.magicDefense)
+            : Math.Abs(_currPlayer.attack - _chosenEnemy.defense);
         bool enemyIsDead = _chosenEnemy.TakeDamage(_damageTaken);
+
+        // Update UI text
         _UI.SetCombatText($"{_chosenEnemy.unitName.ToUpper()} " +
             $"{(enemyIsDead ? "EDURED" : "DIED taking")} " +
             $"{_utils.CapitalizeFirst(_utils.NumberToWords((int)_damageTaken))} " +
@@ -251,10 +263,13 @@ public class BattleSystem : MonoBehaviour
             GetNextTurn();
         else
         {
+            // Update UI text
             _UI.SetBattlePhaseDisplayText("WON");
-            _UI.SetCombatText($"The BATTLE is WON: {_currPlayer.unitName.ToUpper()} LAUDED!");
+            _UI.SetCombatText($"The battle is WON: {_currPlayer.unitName.ToUpper()} LAUDED!");
+
             yield return new WaitForSeconds(1.0f);
 
+            // Player Team Wins
             StartCoroutine(BattleEnd("PLAYER"));
         }
     }
@@ -269,30 +284,41 @@ public class BattleSystem : MonoBehaviour
     /// /// <param name="_currPlayer">The current Player taking its Turn</param>
     IEnumerator EnemyAttack(Unit _currEnemy)
     {
-        // Perform Player's Attack Animation
+        // Perform Enemy's Attack Animation
         _currEnemy.Attack();
 
         yield return _animationDelay;
 
-        // Choose random, alive Player and deal damage to them.
+        // Get list of alive Players
         List<Player> _alivePlayers = new List<Player>();
         _alivePlayers = _playerList.FindAll(x => x.isDead == false);
+
+        // Choose random alive Player, and deal damage to them.
         var random = new System.Random();
         Player _chosenPlayer = _alivePlayers[random.Next(_alivePlayers.Count)];
 
-        float _damageTaken = Math.Abs(_currEnemy.attack - _chosenPlayer.defense);
+        float _damageTaken = (_chosenPlayer.isDefending)
+            ? (_currEnemy.attack - (_chosenPlayer.defense * 2) >= 0)
+                ? _currEnemy.attack - (_chosenPlayer.defense * 2) : 0
+            : (_currEnemy.attack - _chosenPlayer.defense >= 0)
+                ? _currEnemy.attack - _chosenPlayer.defense : 0;
+
+        // if Player is defending, return sprite to normal
+        if (_chosenPlayer.GetComponent<SpriteRenderer>().material != defaultMaterial)
+            _chosenPlayer.GetComponent<SpriteRenderer>().material = defaultMaterial;
+        _chosenPlayer.isDefending = false;
+
         bool playerIsDead = _chosenPlayer.TakeDamage(_damageTaken);
+
+        // Update UI text
         _UI.SetCombatText($"{_currEnemy.unitName.ToUpper()} " +
             $"ATTACKS: " +
             $"{_chosenPlayer.unitName.ToUpper()} " +
-            $"{(playerIsDead ? "KILLED by" : "takes")} " +
+            $"{(playerIsDead ? "FALLS, " : "takes")} " +
             $"{_utils.CapitalizeFirst(_utils.NumberToWords((int)_damageTaken))} " +
-            $"DAMAGE!");
+            $"damage!");
 
         yield return new WaitForSeconds(1.0f);
-
-        // Set Enemy's Animation to Idle.
-        _currEnemy.SetBattleStance();
 
         // If all Players are dead Enemy team wins (Player loss),
         // otherwise, take next Turn.
@@ -301,8 +327,11 @@ public class BattleSystem : MonoBehaviour
             GetNextTurn();
         else
         {
+            // Update UI text
             _UI.SetBattlePhaseDisplayText("LOST");
             _UI.SetCombatText($"The BATTLE is LOST: {_chosenPlayer.unitName.ToUpper()} The LAST to fall...");
+
+            // Enemies Win
             StartCoroutine(BattleEnd("ENEMY"));
         }
     }
@@ -354,17 +383,6 @@ public class BattleSystem : MonoBehaviour
         _rEnemyGO = Instantiate(rEnemyPrefab, rEnemyStartPos);
         _gEnemyGO = Instantiate(gEnemyPrefab, gEnemyStartPos);
         _bEnemyGO = Instantiate(bEnemyPrefab, bEnemyStartPos);
-        _unitGOList = new List<GameObject>
-        {
-            _playerGO,
-            _rPlayerGO,
-            _gPlayerGO,
-            _bPlayerGO,
-            _enemyGO,
-            _rEnemyGO,
-            _gEnemyGO,
-            _bEnemyGO
-        };
 
         // Get Health Bar GOs in Hierarchy
         _playerHealthBarGO = GameObject.Find("PlayerHealthBar");
@@ -375,6 +393,7 @@ public class BattleSystem : MonoBehaviour
         _rEnemyHealthBarGO = GameObject.Find("R_EnemyHealthBar");
         _gEnemyHealthBarGO = GameObject.Find("G_EnemyHealthBar");
         _bEnemyHealthBarGO = GameObject.Find("B_EnemyHealthBar");
+
         _healthBarGOList = new List<GameObject>
         {
             _playerHealthBarGO,
@@ -527,13 +546,34 @@ public class BattleSystem : MonoBehaviour
             _nextTurn.Push(unit);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="_currPlayer"></param>
+    private void PlayerDefend(Unit _currPlayer)
+    {
+        // Update UI Text
+        _UI.SetCombatText($"{_currPlayer.unitName.ToUpper()}: DEFENDING!");
+
+        // Set Player to defend next Attack.
+        _currPlayer.isDefending = true;
+        _currPlayer.GetComponent<SpriteRenderer>().material = spriteOutlineMaterial;
+
+        // Get next Unit's Turn
+        GetNextTurn();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>true if any enemies have been clicked, false otherwise</returns>
     private bool SelectEnemy()
     {
         // Check if any Enemies have been selected.
         List<Enemy_FlyingEye> _selectedEnemies = new List<Enemy_FlyingEye>();
         _selectedEnemies = _enemyList.FindAll(x => x.isSelected && !x.isDead);
 
-        // If an Enemy has been selected, trutn true, otherwise false.
+        // If an Enemy has been selected, return true, otherwise false.
         if (_selectedEnemies.Count > 0)
         {
             // Destroy Components that make Enemies Clickable,
@@ -544,6 +584,13 @@ public class BattleSystem : MonoBehaviour
 
             return true;
         }
+        return false;
+    }
+
+    private bool ClickNext()
+    {
+        if (Input.GetMouseButtonDown(0))
+            return true;
         return false;
     }
 
@@ -582,7 +629,6 @@ public class BattleSystem : MonoBehaviour
         if (_battleState != BattleState.PLAYER)
             return;
 
-
         // Start Player's Attack.
         StartCoroutine(PlayerAttack(_currPlayer));
     }
@@ -599,10 +645,7 @@ public class BattleSystem : MonoBehaviour
         if (_battleState != BattleState.PLAYER)
             return;
 
-        // TODO: Implement Player's Magic Attack coroutine.
-        Debug.Log("MAGIC BUTTON PRESSED");
-        StartCoroutine(SelectAction(_currPlayer));
-        //StartCoroutine(PlayerAction("MAGIC"));
+        StartCoroutine(PlayerAttack(_currPlayer, "MAGIC"));
     }
 
     /// <summary>
@@ -617,10 +660,7 @@ public class BattleSystem : MonoBehaviour
         if (_battleState != BattleState.PLAYER)
             return;
 
-        // TODO: Implement Player's Defend coroutine.
-        Debug.Log("DEFEND BUTTON PRESSED");
-        StartCoroutine(SelectAction(_currPlayer));
-        //StartCoroutine(PlayerAction("DEFEND"));
+        PlayerDefend(_currPlayer);
     }
 
     /// <summary>
@@ -635,9 +675,25 @@ public class BattleSystem : MonoBehaviour
         if (_battleState != BattleState.PLAYER)
             return;
 
-        // TODO: Implement Invetory selection.
-        Debug.Log("ITEM BUTTON PRESSED");
+        ToggleInventory();
         StartCoroutine(SelectAction(_currPlayer));
-        //StartCoroutine(OpenInventory());
+    }
+
+    private void ToggleInventory()
+    {
+        var canvasGroup = GameObject.Find("Inventory").GetComponent<CanvasGroup>();
+
+        if (_inventoryOpen)
+        {
+            canvasGroup.alpha = 0f;
+            canvasGroup.blocksRaycasts = false;
+        }
+        else
+        {
+            canvasGroup.alpha = 1f;
+            canvasGroup.blocksRaycasts = true;
+        }
+
+        _inventoryOpen = !_inventoryOpen;
     }
 }
